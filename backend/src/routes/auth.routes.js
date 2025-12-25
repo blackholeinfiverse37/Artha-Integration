@@ -11,9 +11,7 @@ const registerValidation = [
   body('email').isEmail().normalizeEmail().withMessage('Please provide a valid email'),
   body('password')
     .isLength({ min: 8 })
-    .withMessage('Password must be at least 8 characters')
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
-    .withMessage('Password must contain uppercase, lowercase, number and special character'),
+    .withMessage('Password must be at least 8 characters'),
   body('name').trim().notEmpty().withMessage('Name is required'),
 ];
 

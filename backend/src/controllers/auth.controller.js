@@ -81,10 +81,13 @@ export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
     
+    logger.info(`Login attempt for: ${email}`);
+    
     // Find user and include password
     const user = await User.findOne({ email }).select('+password');
     
     if (!user) {
+      logger.warn(`Login failed - user not found: ${email}`);
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials',
@@ -93,6 +96,7 @@ export const login = async (req, res) => {
     
     // Check if user is active
     if (!user.isActive) {
+      logger.warn(`Login failed - user inactive: ${email}`);
       return res.status(401).json({
         success: false,
         message: 'Account is inactive',
@@ -102,6 +106,7 @@ export const login = async (req, res) => {
     // Verify password
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
+      logger.warn(`Login failed - invalid password: ${email}`);
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials',
@@ -118,9 +123,9 @@ export const login = async (req, res) => {
     user.refreshToken = refreshToken;
     await user.save();
     
-    logger.info(`User logged in: ${email}`);
+    logger.info(`User logged in successfully: ${email}`);
     
-    res.json({
+    const response = {
       success: true,
       data: {
         user: {
@@ -132,7 +137,10 @@ export const login = async (req, res) => {
         token,
         refreshToken,
       },
-    });
+    };
+    
+    logger.info(`Login response for ${email}:`, { success: true, userRole: user.role });
+    res.json(response);
   } catch (error) {
     logger.error('Login error:', error);
     res.status(500).json({

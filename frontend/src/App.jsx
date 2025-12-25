@@ -11,11 +11,16 @@ import Layout from './components/Layout';
 import { authService } from './services/authService';
 
 function PrivateRoute({ children }) {
-  return authService.isAuthenticated() ? (
-    <Layout>{children}</Layout>
-  ) : (
-    <Navigate to="/login" />
-  );
+  const isAuthenticated = authService.isAuthenticated();
+  console.log('PrivateRoute: Authentication check:', isAuthenticated);
+  
+  if (!isAuthenticated) {
+    console.log('PrivateRoute: Not authenticated, redirecting to login');
+    return <Navigate to="/login" replace />;
+  }
+  
+  console.log('PrivateRoute: Authenticated, rendering protected content');
+  return <Layout>{children}</Layout>;
 }
 
 function App() {

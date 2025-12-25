@@ -1,13 +1,59 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
+import api from '../services/api';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState(null);
   const navigate = useNavigate();
+
+  // Test backend connection on component mount
+  useEffect(() => {
+    const testConnection = async () => {
+      try {
+        // Test direct backend health endpoint with proper error handling
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
+        const response = await fetch('http://localhost:5000/api/health', {
+          method: 'GET',
+          signal: controller.signal,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Backend connection successful:', data);
+          setConnectionStatus('connected');
+        } else {
+          console.error('Backend returned error status:', response.status);
+          setConnectionStatus('disconnected');
+        }
+      } catch (err) {
+        console.error('Backend connection test failed:', err);
+        setConnectionStatus('disconnected');
+      }
+    };
+    
+    testConnection();
+    
+    // Retry connection test every 10 seconds if disconnected
+    const interval = setInterval(() => {
+      if (connectionStatus === 'disconnected') {
+        testConnection();
+      }
+    }, 10000);
+    
+    return () => clearInterval(interval);
+  }, [connectionStatus]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -15,13 +61,39 @@ export default function Login() {
     setLoading(true);
 
     try {
-      await authService.login(email, password);
-      navigate('/dashboard');
+      console.log('Login: Attempting login with:', { email, password: '***' });
+      const result = await authService.login(email, password);
+      console.log('Login: Auth service returned:', result);
+      
+      if (result.success) {
+        console.log('Login: Success, navigating to dashboard');
+        navigate('/dashboard', { replace: true });
+      } else {
+        console.error('Login: Failed with result:', result);
+        setError(result.message || 'Login failed');
+      }
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed');
+      console.error('Login: Exception caught:', err);
+      const errorMessage = err.response?.data?.message || 
+                          err.message || 
+                          'Login failed. Please check your credentials.';
+      setError(errorMessage);
+      
+      // Additional debugging info
+      if (err.response?.status === 404) {
+        setError('Backend server not running. Please start the ARTHA backend service.');
+      } else if (err.response?.status === 500) {
+        setError('Server error. Please check backend logs.');
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  const fillCredentials = (userEmail, userPassword) => {
+    setEmail(userEmail);
+    setPassword(userPassword);
+    setError('');
   };
 
   return (
@@ -45,6 +117,24 @@ export default function Login() {
 
         {/* Login Card */}
         <div className="bg-white/80 backdrop-blur-sm shadow-2xl rounded-2xl p-8 border border-white/20">
+          {/* Connection Status */}
+          {connectionStatus && (
+            <div className={`mb-4 p-3 rounded-xl border ${
+              connectionStatus === 'connected' 
+                ? 'bg-green-50 border-green-200 text-green-800' 
+                : 'bg-red-50 border-red-200 text-red-800'
+            }`}>
+              <div className="flex items-center text-sm">
+                <div className={`w-2 h-2 rounded-full mr-2 ${
+                  connectionStatus === 'connected' ? 'bg-green-500' : 'bg-red-500'
+                }`}></div>
+                {connectionStatus === 'connected' 
+                  ? '✅ Backend Connected' 
+                  : '❌ Backend Disconnected - Please start ARTHA backend service'
+                }
+              </div>
+            </div>
+          )}
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
               <div className="flex items-center">
@@ -126,9 +216,29 @@ export default function Login() {
           <div className="mt-8 p-4 bg-blue-50 rounded-xl border border-blue-200">
             <h3 className="text-sm font-semibold text-blue-800 mb-2">Demo Credentials:</h3>
             <div className="text-xs text-blue-700 space-y-1">
-              <p><strong>Admin:</strong> admin@artha.local / Admin@123456</p>
-              <p><strong>Accountant:</strong> accountant@artha.local / Accountant@123</p>
-              <p><strong>Viewer:</strong> user@example.com / testuser123</p>
+              <p 
+                className="cursor-pointer hover:bg-blue-100 p-1 rounded transition-colors"
+                onClick={() => fillCredentials('admin@artha.local', 'Admin@123456')}
+              >
+                <strong>Admin:</strong> admin@artha.local / Admin@123456
+              </p>
+              <p 
+                className="cursor-pointer hover:bg-blue-100 p-1 rounded transition-colors"
+                onClick={() => fillCredentials('accountant@artha.local', 'Accountant@123')}
+              >
+                <strong>Accountant:</strong> accountant@artha.local / Accountant@123
+              </p>
+              <p 
+                className="cursor-pointer hover:bg-blue-100 p-1 rounded transition-colors"
+                onClick={() => fillCredentials('user@example.com', 'testuser123')}
+              >
+                <strong>Viewer:</strong> user@example.com / testuser123
+              </p>
+            </div>
+            <div className="mt-3 p-2 bg-yellow-50 rounded border border-yellow-200">
+              <p className="text-xs text-yellow-800">
+                💡 <strong>Quick Login:</strong> Click on any credential above to auto-fill the form
+              </p>
             </div>
           </div>
         </div>

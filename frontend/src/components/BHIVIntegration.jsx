@@ -61,26 +61,41 @@ export function BHIVIntegration() {
               status.status === 'partial' ? 'bg-yellow-500' : 'bg-red-500'
             }`} />
             <span className="font-medium">
-              BHIV Core: {status.status === 'connected' ? 'Connected' : 
-                         status.status === 'partial' ? 'Partially Connected' : 'Disconnected'}
+              BHIV: {status.status === 'connected' ? 'Connected' : 
+                     status.status === 'partial' ? 'Partially Connected' : 'Disconnected'}
             </span>
           </div>
-          {status.simpleApiUrl && (
-            <p className="text-sm text-gray-600">
-              Simple API: {status.simpleApiUrl} ({status.simpleApi || 'unknown'})
-              {status.errors?.simpleApi && (
-                <span className="text-red-600 ml-2">- {status.errors.simpleApi}</span>
-              )}
-            </p>
+          
+          {/* BHIV Core Status */}
+          {status.services?.bhivCore && (
+            <div className="mb-2">
+              <p className="text-sm text-gray-600">
+                <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
+                  status.services.bhivCore.status === 'healthy' ? 'bg-green-400' : 'bg-red-400'
+                }`}></span>
+                BHIV Core: {status.services.bhivCore.status}
+                {status.services.bhivCore.error && (
+                  <span className="text-red-600 ml-2">- {status.services.bhivCore.error}</span>
+                )}
+              </p>
+            </div>
           )}
-          {status.mcpBridgeUrl && (
-            <p className="text-sm text-gray-600">
-              MCP Bridge: {status.mcpBridgeUrl} ({status.mcpBridge || 'unknown'})
-              {status.errors?.mcpBridge && (
-                <span className="text-red-600 ml-2">- {status.errors.mcpBridge}</span>
-              )}
-            </p>
+          
+          {/* BHIV Central Status */}
+          {status.services?.bhivCentralDepository && (
+            <div className="mb-2">
+              <p className="text-sm text-gray-600">
+                <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
+                  status.services.bhivCentralDepository.status === 'healthy' ? 'bg-green-400' : 'bg-red-400'
+                }`}></span>
+                BHIV Central: {status.services.bhivCentralDepository.status}
+                {status.services.bhivCentralDepository.errors?.mainApi && (
+                  <span className="text-red-600 ml-2">- {status.services.bhivCentralDepository.errors.mainApi}</span>
+                )}
+              </p>
+            </div>
           )}
+          
           {status.troubleshooting && (
             <div className="mt-2 p-2 bg-blue-50 rounded border border-blue-200">
               <p className="text-sm font-medium text-blue-800">
@@ -91,8 +106,14 @@ export function BHIVIntegration() {
                   Solution: {status.troubleshooting.solution}
                 </p>
               )}
+              {status.troubleshooting.details && (
+                <div className="text-xs text-blue-600 mt-1">
+                  Required: {status.troubleshooting.details.requiredServices?.join(', ')}
+                </div>
+              )}
             </div>
           )}
+          
           {status.error && (
             <p className="text-sm text-red-600 mt-2">Error: {status.error}</p>
           )}

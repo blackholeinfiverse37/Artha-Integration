@@ -104,7 +104,7 @@ app.use(sanitizeInput);
 app.use('/uploads', express.static('uploads'));
 
 // Mount health routes (before other routes for priority)
-app.use('/', healthRoutes);
+app.use('/api', healthRoutes);
 
 // Enhanced health check (now handled by health routes)
 // Legacy health endpoint for backward compatibility
