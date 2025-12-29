@@ -102,16 +102,9 @@ class SimpleOrchestrationEngine:
         
         # Initialize multi-folder vector manager for comprehensive search
         try:
-            from multi_folder_vector_manager import MultiFolderVectorManager
-            self.multi_folder_manager = MultiFolderVectorManager()
-            logger.info("✅ Multi-folder vector manager initialized successfully")
-            
-            # Get statistics
-            stats = self.multi_folder_manager.get_folder_statistics()
-            logger.info(f"📊 Available folders: {stats['available_folders']}")
-            logger.info(f"📊 Total collections: {stats['total_collections']}")
-            logger.info(f"📊 Total points: {stats['total_points']}")
-            
+            # Skip multi-folder manager to avoid qdrant_client dependency
+            logger.info("⚠️ Multi-folder manager disabled - using fallback retrieval")
+            self.multi_folder_manager = None
         except Exception as e:
             logger.warning(f"⚠️ Multi-folder manager not available: {e}")
             self.multi_folder_manager = None
@@ -121,17 +114,8 @@ class SimpleOrchestrationEngine:
             logger.info("🔄 Falling back to individual vector store initialization...")
             
             # First try to load from NAS-based Qdrant using NASKnowledgeRetriever
-            try:
-                from example.nas_retriever import NASKnowledgeRetriever
-                nas_retriever = NASKnowledgeRetriever("vedas", qdrant_url="localhost:6333")
-                if nas_retriever.qdrant_available:
-                    # Create a wrapper for NAS retriever to work with existing code
-                    self.vector_stores["nas_vedas"] = nas_retriever
-                    logger.info("✅ Loaded NAS-based vector store for vedas")
-                else:
-                    logger.warning("⚠️ NAS Qdrant not available, trying local FAISS stores")
-            except Exception as e:
-                logger.warning(f"NAS retriever not available: {e}")
+            # Skip NAS retriever to avoid qdrant_client dependency
+            logger.info("⚠️ NAS retriever disabled - using local fallback")
 
             # Try local FAISS vector stores as fallback
             vector_store_dir = Path("vector_stores")
@@ -156,73 +140,13 @@ class SimpleOrchestrationEngine:
         return self.model_providers[endpoint].generate_response(prompt, fallback)
     
     def search_documents(self, query: str, store_type: str = "unified") -> list:
-        # Priority 1: Multi-folder vector search (most comprehensive)
-        if hasattr(self, 'multi_folder_manager') and self.multi_folder_manager:
-            try:
-                logger.info("🎯 Using multi-folder vector search...")
-                results = self.multi_folder_manager.search_all_folders(query, top_k=3)
-                
-                if results:
-                    formatted_results = [
-                        {
-                            "text": result["content"][:500],
-                            "source": f"Multi-Folder:{result['folder']}:{result['collection']}:{result['document_id']}"
-                        }
-                        for result in results
-                    ]
-                    logger.info(f"Multi-folder search found {len(formatted_results)} results from {len(set(result['folder'] for result in results))} folders")
-                    return formatted_results
-                else:
-                    logger.warning("⚠️ Multi-folder search returned no results, trying fallback...")
-                    
-            except Exception as e:
-                logger.error(f"Multi-folder search error: {e}")
+        # Priority 1: Skip multi-folder search (disabled)
         
-        # Priority 2: NAS-based knowledge base with Qdrant
-        try:
-            from bhiv_knowledge_base import BHIVKnowledgeBase
-            nas_path = os.getenv("NAS_PATH", r"\\192.168.0.94\Guruukul_DB")
-
-            # Initialize knowledge base (cached)
-            if not hasattr(self, '_nas_kb'):
-                self._nas_kb = BHIVKnowledgeBase(nas_path, use_qdrant=True)  # Enable Qdrant
-                logger.info("✅ NAS Knowledge Base initialized with Qdrant")
-
-            # Search in NAS knowledge base
-            nas_results = self._nas_kb.search(query, limit=3)
-            if nas_results:
-                formatted_results = [
-                    {
-                        "text": result["content"][:500],
-                        "source": f"NAS-KB:{result['document_id']}"
-                    }
-                    for result in nas_results
-                ]
-                logger.info(f"NAS-KB search found {len(formatted_results)} results for '{query}'")
-                return formatted_results
-
-        except Exception as e:
-            logger.error(f"NAS Knowledge Base search error: {e}")
-
-        # Priority 3: NAS retriever from vector stores
-        if "nas_vedas" in self.vector_stores:
-            try:
-                nas_retriever = self.vector_stores["nas_vedas"]
-                nas_results = nas_retriever.query(query, top_k=3)
-                if nas_results:
-                    formatted_results = [
-                        {
-                            "text": result["content"][:500],
-                            "source": f"NAS-Qdrant:{result.get('document_id', 'unknown')}"
-                        }
-                        for result in nas_results
-                    ]
-                    logger.info(f"NAS-Qdrant search found {len(formatted_results)} results for '{query}'")
-                    return formatted_results
-            except Exception as e:
-                logger.error(f"NAS retriever search error: {e}")
-
-        # Priority 4: Fallback to FAISS vector stores (if available)
+        # Priority 2: Skip NAS Knowledge Base (disabled to avoid network errors)
+        
+        # Priority 3: Skip NAS retriever (disabled)
+        
+        # Priority 4: Try FAISS vector stores (if available)
         if store_type in self.vector_stores:
             try:
                 retriever = self.vector_stores[store_type].as_retriever(search_kwargs={"k": 3})
@@ -420,33 +344,20 @@ Provide supportive guidance that:
 
 # ==================== KNOWLEDGE BASE ENDPOINTS ====================
 
-# Initialize KnowledgeAgent with NAS support
+# Initialize KnowledgeAgent with simplified setup
 try:
-    from example.nas_retriever import NASKnowledgeRetriever
-    # Try to initialize with NAS retriever first
-    nas_retriever = NASKnowledgeRetriever("vedas", qdrant_url="localhost:6333")
-    if nas_retriever.qdrant_available:
-        logger.info("✅ NAS retriever available, initializing KnowledgeAgent with NAS support")
-        knowledge_agent = KnowledgeAgent()
-    else:
-        logger.warning("⚠️ NAS retriever not available, using fallback KnowledgeAgent")
-        knowledge_agent = KnowledgeAgent()
-except Exception as e:
-    logger.warning(f"Failed to initialize NAS retriever: {e}, using fallback KnowledgeAgent")
+    logger.info("✅ Initializing KnowledgeAgent with file-based fallback")
     knowledge_agent = KnowledgeAgent()
+except Exception as e:
+    logger.warning(f"Failed to initialize KnowledgeAgent: {e}, using minimal fallback")
+    knowledge_agent = None
 
-# Initialize NAS Knowledge Base
+# Skip NAS Knowledge Base initialization to avoid network errors
 nas_kb = None
 
 def get_nas_kb():
-    """Get or initialize NAS Knowledge Base"""
-    global nas_kb
-    if nas_kb is None:
-        from bhiv_knowledge_base import BHIVKnowledgeBase
-        nas_path = os.getenv("NAS_PATH", r"\\192.168.0.94\Guruukul_DB")
-        nas_kb = BHIVKnowledgeBase(nas_path, use_qdrant=True)  # Enable Qdrant
-        logger.info("✅ NAS Knowledge Base initialized for API with Qdrant")
-    return nas_kb
+    """Disabled NAS Knowledge Base to avoid network errors"""
+    return None
 
 @app.get("/query-kb")
 async def query_knowledge_base_get(
@@ -478,22 +389,34 @@ async def process_knowledge_query(query: str, filters: Optional[Dict[str, Any]],
     query_id = str(uuid.uuid4())
 
     try:
-        # Query the knowledge base using KnowledgeAgent
-        result = knowledge_agent.run(
-            input_path=query,
-            model="knowledge_agent",
-            input_type="text",
-            task_id=query_id
-        )
+        # Use KnowledgeAgent if available, otherwise provide fallback
+        if knowledge_agent:
+            result = knowledge_agent.run(
+                input_path=query,
+                model="knowledge_agent",
+                input_type="text",
+                task_id=query_id
+            )
+        else:
+            # Fallback response
+            result = {
+                "query_id": query_id,
+                "query": query,
+                "response": f"Knowledge base query processed: {query}. This is a fallback response as advanced knowledge retrieval is currently unavailable.",
+                "sources": [{"text": "Fallback response", "source": "simple_api_fallback"}],
+                "timestamp": datetime.now().isoformat(),
+                "status": 200,
+                "fallback": True
+            }
 
         response_time = time.time() - start_time
 
         # Extract metadata for logging
         sources = result.get("sources", [])
-        results_count = result.get("knowledge_base_results", 0)
-        retriever_type = result.get("metadata", {}).get("retriever", "unknown")
+        results_count = len(sources)
+        retriever_type = "fallback" if result.get("fallback") else "knowledge_agent"
 
-        # Log to MongoDB for analytics
+        # Log to MongoDB for analytics (if available)
         kb_log_data = {
             'query_id': query_id,
             'user_id': user_id,
@@ -507,7 +430,7 @@ async def process_knowledge_query(query: str, filters: Optional[Dict[str, Any]],
             'status': result.get("status", 200)
         }
 
-        # Async log to MongoDB
+        # Async log to MongoDB (with error handling)
         try:
             await mongo_logger.log_kb_query(kb_log_data)
         except Exception as log_error:
@@ -527,7 +450,7 @@ async def process_knowledge_query(query: str, filters: Optional[Dict[str, Any]],
         response_time = time.time() - start_time
         logger.error(f"Error in knowledge base query: {e}")
 
-        # Log failed query
+        # Log failed query (with error handling)
         try:
             await mongo_logger.log_kb_query({
                 'query_id': query_id,

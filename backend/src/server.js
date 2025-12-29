@@ -75,12 +75,38 @@ app.set('IdempotencyRecord', IdempotencyRecord);
 
 // Security middleware
 app.use(helmetConfig);
-app.use(cors({
-  origin: process.env.FRONTEND_URL || process.env.CORS_ORIGIN || 'http://localhost:5173',
+
+// Dynamic CORS configuration for network access
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, etc.)
+    if (!origin) return callback(null, true);
+    
+    // Allow localhost and network IPs
+    const allowedOrigins = [
+      'http://localhost:5173',
+      'http://127.0.0.1:5173',
+      process.env.FRONTEND_URL,
+      process.env.CORS_ORIGIN
+    ].filter(Boolean);
+    
+    // Allow any origin that matches the pattern http://[IP]:5173
+    const networkPattern = /^http:\/\/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:5173$/;
+    const isNetworkOrigin = networkPattern.test(origin);
+    
+    if (allowedOrigins.includes(origin) || isNetworkOrigin) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-}));
+};
+
+app.use(cors(corsOptions));
 app.use(limiter);
 app.use(watermark);
 
@@ -172,8 +198,10 @@ app.use((err, req, res, next) => {
 let server;
 if (process.env.NODE_ENV !== 'test') {
   const PORT = process.env.PORT || 5000;
-  server = app.listen(PORT, () => {
-    logger.info(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
+  const HOST = process.env.HOST || '0.0.0.0'; // Bind to all interfaces
+  server = app.listen(PORT, HOST, () => {
+    logger.info(`Server running in ${process.env.NODE_ENV} mode on ${HOST}:${PORT}`);
+    logger.info(`Network access: http://[YOUR_IP]:${PORT}`);
   });
 }
 

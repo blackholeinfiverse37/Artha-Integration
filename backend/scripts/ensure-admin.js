@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import User from '../src/models/User.js';
@@ -12,12 +10,12 @@ const ensureAdminUser = async () => {
     await mongoose.connect(process.env.MONGODB_URI);
     logger.info('Database connected');
 
-    // Check if admin user exists
     const adminEmail = process.env.ADMIN_EMAIL || 'admin@artha.local';
     const adminPassword = process.env.ADMIN_PASSWORD || 'Admin@123456';
-    
+
+    // Check if admin user exists
     let admin = await User.findOne({ email: adminEmail });
-    
+
     if (!admin) {
       // Create admin user
       admin = await User.create({
@@ -25,47 +23,52 @@ const ensureAdminUser = async () => {
         password: adminPassword,
         name: 'Admin User',
         role: 'admin',
+        isActive: true
       });
       logger.info(`✅ Admin user created: ${admin.email}`);
     } else {
       logger.info(`✅ Admin user already exists: ${admin.email}`);
+      
+      // Update password if needed (for development)
+      if (process.env.NODE_ENV === 'development') {
+        admin.password = adminPassword;
+        await admin.save();
+        logger.info('🔄 Admin password updated for development');
+      }
     }
 
-    // Check if accountant user exists
-    let accountant = await User.findOne({ email: 'accountant@artha.local' });
-    
-    if (!accountant) {
-      accountant = await User.create({
+    // Ensure other demo users exist
+    const users = [
+      {
         email: 'accountant@artha.local',
         password: 'Accountant@123',
         name: 'Accountant User',
-        role: 'accountant',
-      });
-      logger.info(`✅ Accountant user created: ${accountant.email}`);
-    } else {
-      logger.info(`✅ Accountant user already exists: ${accountant.email}`);
-    }
-
-    // Check if viewer user exists
-    let viewer = await User.findOne({ email: 'user@example.com' });
-    
-    if (!viewer) {
-      viewer = await User.create({
+        role: 'accountant'
+      },
+      {
         email: 'user@example.com',
         password: 'testuser123',
         name: 'Test User',
-        role: 'viewer',
-      });
-      logger.info(`✅ Viewer user created: ${viewer.email}`);
-    } else {
-      logger.info(`✅ Viewer user already exists: ${viewer.email}`);
+        role: 'viewer'
+      }
+    ];
+
+    for (const userData of users) {
+      let user = await User.findOne({ email: userData.email });
+      if (!user) {
+        user = await User.create(userData);
+        logger.info(`✅ User created: ${user.email}`);
+      } else {
+        logger.info(`✅ User already exists: ${user.email}`);
+      }
     }
 
-    logger.info('\n🔐 Login Credentials:');
-    logger.info(`Admin: ${adminEmail} / ${adminPassword}`);
-    logger.info('Accountant: accountant@artha.local / Accountant@123');
-    logger.info('Viewer: user@example.com / testuser123');
-    
+    logger.info('\n🎉 All demo users are ready!');
+    logger.info('\nLogin credentials:');
+    logger.info('👤 Admin: admin@artha.local / Admin@123456');
+    logger.info('👤 Accountant: accountant@artha.local / Accountant@123');
+    logger.info('👤 Viewer: user@example.com / testuser123');
+
     process.exit(0);
   } catch (error) {
     logger.error('Error ensuring admin user:', error);

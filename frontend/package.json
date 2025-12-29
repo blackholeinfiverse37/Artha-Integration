@@ -8,7 +8,10 @@
     "preview": "vite preview",
     "lint": "eslint src/",
     "format": "prettier --write src/",
-    "test:reports-frontend": "node test-reports-frontend.js"
+    "test:reports-frontend": "node test-reports-frontend.js",
+    "health-check": "python ../frontend-health-check.py",
+    "verify-startup": "python ../startup-verification.py",
+    "dev:safe": "python ../startup-verification.py && npm run dev"
   },
   "dependencies": {
     "react": "^18.2.0",

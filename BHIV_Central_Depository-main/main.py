@@ -645,4 +645,5 @@ async def process_enhanced_query(request: EnhancedLegalQueryRequest):
 
 if __name__ == "__main__":
     port = int(os.getenv("FASTAPI_PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    host = os.getenv("FASTAPI_HOST", "0.0.0.0")  # Bind to all interfaces
+    uvicorn.run(app, host=host, port=port)

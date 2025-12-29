@@ -15,15 +15,10 @@ if %errorlevel% neq 0 (
 )
 
 echo.
-echo Step 1: Starting BHIV Core Services...
+echo Step 1: Starting BHIV Core Services (Clean Mode)...
 echo ----------------------------------------
-cd "v1-BHIV_CORE-main"
-echo Installing BHIV Core requirements...
-pip install fastapi uvicorn pydantic requests python-dotenv langchain-huggingface langchain-community faiss-cpu
-echo Starting BHIV Core Simple API (Port 8001)...
-start "BHIV Core API" cmd /k "python simple_api.py --port 8001"
+start "BHIV Core API" cmd /k "start-bhiv-core-clean.bat"
 timeout /t 5
-cd ..
 
 echo.
 echo Step 2: Starting BHIV Central Depository...

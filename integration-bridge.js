@@ -384,9 +384,11 @@ io.on('connection', (socket) => {
 
 // Start server
 const PORT = process.env.INTEGRATION_BRIDGE_PORT || 8004;
-server.listen(PORT, () => {
-  console.log(`🌉 BHIV-ARTHA Integration Bridge running on port ${PORT}`);
+const HOST = process.env.INTEGRATION_BRIDGE_HOST || '0.0.0.0';
+server.listen(PORT, HOST, () => {
+  console.log(`🌉 BHIV-ARTHA Integration Bridge running on ${HOST}:${PORT}`);
   console.log(`📊 Health endpoint: http://localhost:${PORT}/health`);
+  console.log(`🌐 Network access: http://[YOUR_IP]:${PORT}/health`);
   console.log(`🔗 WebSocket server ready for real-time updates`);
 });
 

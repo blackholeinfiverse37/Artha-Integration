@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
 import api from '../services/api';
+import ConnectionTest from '../components/ConnectionTest';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -9,17 +10,30 @@ export default function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState(null);
+  const [showConnectionTest, setShowConnectionTest] = useState(false);
   const navigate = useNavigate();
 
   // Test backend connection on component mount
   useEffect(() => {
     const testConnection = async () => {
       try {
+        // Dynamic backend URL based on current host
+        const getBackendUrl = () => {
+          const currentHost = window.location.hostname;
+          if (currentHost !== 'localhost' && currentHost !== '127.0.0.1') {
+            return `http://${currentHost}:5000/api/health`;
+          }
+          return 'http://localhost:5000/api/health';
+        };
+        
+        const backendUrl = getBackendUrl();
+        console.log('Testing backend connection to:', backendUrl);
+        
         // Test direct backend health endpoint with proper error handling
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000);
         
-        const response = await fetch('http://localhost:5000/api/health', {
+        const response = await fetch(backendUrl, {
           method: 'GET',
           signal: controller.signal,
           headers: {
@@ -74,17 +88,21 @@ export default function Login() {
       }
     } catch (err) {
       console.error('Login: Exception caught:', err);
-      const errorMessage = err.response?.data?.message || 
-                          err.message || 
-                          'Login failed. Please check your credentials.';
-      setError(errorMessage);
+      let errorMessage = 'Login failed. Please try again.';
       
-      // Additional debugging info
-      if (err.response?.status === 404) {
-        setError('Backend server not running. Please start the ARTHA backend service.');
+      if (err.code === 'ERR_NETWORK') {
+        errorMessage = 'Cannot connect to server. Please ensure the backend is running on port 5000.';
+      } else if (err.code === 'ECONNABORTED') {
+        errorMessage = 'Request timeout. Please check your connection and try again.';
+      } else if (err.response?.status === 401) {
+        errorMessage = 'Invalid email or password. Please check your credentials.';
       } else if (err.response?.status === 500) {
-        setError('Server error. Please check backend logs.');
+        errorMessage = 'Server error. Please try again later or contact support.';
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
       }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -124,14 +142,24 @@ export default function Login() {
                 ? 'bg-green-50 border-green-200 text-green-800' 
                 : 'bg-red-50 border-red-200 text-red-800'
             }`}>
-              <div className="flex items-center text-sm">
-                <div className={`w-2 h-2 rounded-full mr-2 ${
-                  connectionStatus === 'connected' ? 'bg-green-500' : 'bg-red-500'
-                }`}></div>
-                {connectionStatus === 'connected' 
-                  ? '✅ Backend Connected' 
-                  : '❌ Backend Disconnected - Please start ARTHA backend service'
-                }
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center">
+                  <div className={`w-2 h-2 rounded-full mr-2 ${
+                    connectionStatus === 'connected' ? 'bg-green-500' : 'bg-red-500'
+                  }`}></div>
+                  {connectionStatus === 'connected' 
+                    ? '✅ Backend Connected' 
+                    : '❌ Backend Disconnected - Please start ARTHA backend service'
+                  }
+                </div>
+                {connectionStatus === 'disconnected' && (
+                  <button
+                    onClick={() => setShowConnectionTest(!showConnectionTest)}
+                    className="text-xs underline hover:no-underline"
+                  >
+                    Debug
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -242,6 +270,13 @@ export default function Login() {
             </div>
           </div>
         </div>
+
+        {/* Connection Test Debug Panel */}
+        {showConnectionTest && (
+          <div className="mt-4">
+            <ConnectionTest />
+          </div>
+        )}
 
         {/* Footer */}
         <div className="text-center mt-8">

@@ -166,7 +166,7 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description="Minimal BHIV Core API")
     parser.add_argument("--port", type=int, default=8001, help="Port to run the server on")
-    parser.add_argument("--host", type=str, default="127.0.0.1", help="Host to run the server on")
+    parser.add_argument("--host", type=str, default="0.0.0.0", help="Host to run the server on")
     args = parser.parse_args()
     
     print(f"\nStarting Minimal BHIV Core API on http://{args.host}:{args.port}")
